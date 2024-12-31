@@ -1,0 +1,25 @@
+# Ignorer les fichiers temporaires ou système
+*.log
+*.tmp
+.DS_Store
+Thumbs.db
+
+# Ignorer les dossiers spécifiques
+/../Downloads/
+node_modules/
+build/
+dist/
+.idea/
+.vscode/
+__pycache__/
+
+# Flutter
+**/flutter_export_environment.sh
+**/flutter_export_environment.json
+
+# Python
+*.pyc
+*.pyo
+*.pyd
+venv/
+.env
