@@ -15,8 +15,8 @@
 
 ### Cloner le projet
 ```bash
-git clone https://github.com/adGuil/Planable.git
-cd Planable
+git clone https://github.com/adrienGuillotS/PlanDeTable.git
+cd PlanDeTable
 ```
 
 ### Back-end : Installation des dépendances
