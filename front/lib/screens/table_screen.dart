@@ -1,0 +1,316 @@
+import 'package:flutter/material.dart';
+import '../services/api_service.dart';
+import 'dart:math';
+
+class TableScreen extends StatefulWidget {
+  @override
+  _TableScreenState createState() => _TableScreenState();
+}
+
+class _TableScreenState extends State<TableScreen> {
+  List<Map<String, dynamic>> table1 = [];
+  List<Map<String, dynamic>> table2 = [];
+  List<Map<String, dynamic>> peopleList = [];
+  Map<String, bool> presence = {};
+
+  String statusMessage = "Appuyez sur le bouton pour générer un plan.";
+
+  @override
+  void initState() {
+    super.initState();
+    fetchPeople();
+  }
+
+  void fetchPeople() async {
+    try {
+      final people = await ApiService.getPeople();
+      setState(() {
+        peopleList = people;
+        for (var person in people) {
+          presence[person['name']] = true;
+        }
+      });
+    } catch (e) {
+      setState(() {
+        statusMessage = "Erreur lors de la récupération des personnes.";
+      });
+    }
+  }
+
+  void generateTablePlan() async {
+    setState(() {
+      statusMessage = "Chargement en cours...";
+    });
+
+    try {
+      final presentPeople = peopleList
+          .where((person) => presence[person['name']] == true)
+          .toList();
+
+      final plan = await ApiService.getTablePlan(presentPeople);
+      setState(() {
+        table1 = plan['table1'];
+        table2 = plan['table2'];
+        statusMessage = "Plan de table généré avec succès mamounette chérie.";
+      });
+    } catch (e) {
+      setState(() {
+        statusMessage = "Erreur : Impossible de générer le plan mamoune appelle adrien et oscar.";
+      });
+    }
+  }
+
+Widget buildRectangleTable(List<Map<String, dynamic>> table) {
+  if (table.length < 6) {
+    return Container(
+      child: Center(child: Text('Minimum 6 people required')),
+    );
+  }
+
+  // Find Polo and create modified table
+  List<Map<String, dynamic>> modifiedTable = List.from(table);
+  int? poloIndex;
+  for (int i = 0; i < modifiedTable.length; i++) {
+    if (modifiedTable[i]['name'] == 'Polo') {
+      poloIndex = i;
+      break;
+    }
+  }
+
+  // Calculate distribution
+  final sideCount = 2;
+  final remainingCount = modifiedTable.length - (sideCount * 2);
+  final lengthCount = remainingCount ~/ 2;
+
+  List<Map<String, dynamic>> top = [];
+  List<Map<String, dynamic>> right = [];
+  List<Map<String, dynamic>> bottom = [];
+  List<Map<String, dynamic>> left = [];
+
+  if (poloIndex != null) {
+    // Remove Polo and reorganize
+    final polo = modifiedTable.removeAt(poloIndex);
+    
+    // Distribute remaining people
+    top = modifiedTable.sublist(0, lengthCount);
+    right = modifiedTable.sublist(lengthCount, lengthCount + sideCount);
+    bottom = modifiedTable.sublist(lengthCount + sideCount, lengthCount + sideCount + lengthCount);
+    
+    // Create left side with Polo second from bottom
+    if (modifiedTable.isNotEmpty) {
+      left = [modifiedTable.last, polo];
+    } else {
+      left = [polo];
+    }
+  } else {
+    // Normal distribution without Polo
+    top = modifiedTable.sublist(0, lengthCount);
+    right = modifiedTable.sublist(lengthCount, lengthCount + sideCount);
+    bottom = modifiedTable.sublist(lengthCount + sideCount, lengthCount + sideCount + lengthCount);
+    left = modifiedTable.sublist(modifiedTable.length - sideCount);
+  }
+
+  final TextStyle nameStyle = TextStyle(
+    fontSize: 14,
+    fontWeight: FontWeight.w600,
+    color: Colors.grey.shade800,
+  );
+
+  return Container(
+    width: 600,
+    height: 200,
+    decoration: BoxDecoration(
+      color: Colors.white,
+      border: Border.all(color: Colors.grey.shade300, width: 2),
+      borderRadius: BorderRadius.circular(10),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.grey.withOpacity(0.2),
+          spreadRadius: 2,
+          blurRadius: 4,
+          offset: Offset(0, 2),
+        ),
+      ],
+    ),
+    child: Stack(
+      children: [
+        // Top names
+        Positioned(
+          top: 8,
+          left: 50,
+          right: 50,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: top.map((person) => Text(person['name']!, style: nameStyle)).toList(),
+          ),
+        ),
+        // Right names (2 people)
+        Positioned(
+          top: 70,
+          right: 10,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: right.map((person) => Text(person['name']!, style: nameStyle)).toList(),
+          ),
+        ),
+        // Bottom names
+        Positioned(
+          bottom: 8,
+          left: 50,
+          right: 50,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: bottom.map((person) => Text(person['name']!, style: nameStyle)).toList(),
+          ),
+        ),
+        // Left names (2 people)
+        Positioned(
+          top: 70,
+          left: 10,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: left.map((person) => Text(person['name']!, style: nameStyle)).toList(),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+Widget buildCircularTable(List<Map<String, dynamic>> table) {
+  final TextStyle nameStyle = TextStyle(
+    fontSize: 14,
+    fontWeight: FontWeight.w600,
+    color: Colors.black87,
+    fontFamily: 'SF Pro',
+  );
+
+  return SizedBox(
+    width: 300,
+    height: 300,
+    child: Stack(
+      alignment: Alignment.center,
+      children: [
+        // Table circle
+        Container(
+          width: 200,
+          height: 200,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.blueAccent.withOpacity(0.5), width: 2),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                spreadRadius: 2,
+                blurRadius: 4,
+                offset: Offset(0, 3),
+              ),
+            ],
+          ),
+        ),
+        // Names around circle
+        ...table.asMap().entries.map((entry) {
+          final index = entry.key;
+          final person = entry.value['name'];
+          final angle = (2 * pi * index) / table.length;
+          
+          // Radius for name placement
+          final radius = 120.0;
+          final x = cos(angle) * radius;
+          final y = sin(angle) * radius;
+
+          // Calculate text offset based on angle
+          final textOffsetX = x > 0 ? -20.0 : x < 0 ? -40.0 : -30.0;
+          final textOffsetY = y > 0 ? -10.0 : y < 0 ? -10.0 : -10.0;
+
+          return Positioned(
+            left: 150 + x + textOffsetX,
+            top: 150 + y + textOffsetY,
+            child: Container(
+              padding: EdgeInsets.all(4),
+              child: Text(
+                person!,
+                style: nameStyle,
+                textAlign: TextAlign.center,
+              ),
+            ),
+          );
+        }).toList(),
+      ],
+    ),
+  );
+}
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text("Merci Mamounette", style: TextStyle(fontFamily: 'SF Pro')),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        iconTheme: IconThemeData(color: Colors.black87),
+      ),
+      body: SingleChildScrollView(
+        child: Column(
+          children: [
+            Wrap(
+              spacing: 8.0,
+              runSpacing: 8.0,
+              children: presence.keys.map((person) {
+                final isPresent = presence[person] ?? true;
+                return ElevatedButton(
+                  onPressed: () {
+                    setState(() {
+                      presence[person] = !(presence[person] ?? true);
+                    });
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: isPresent ? Colors.greenAccent : Colors.redAccent,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  ),
+                  child: Text(
+                    person,
+                    style: const TextStyle(fontSize: 14, fontFamily: 'SF Pro', color: Colors.white),
+                  ),
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: generateTablePlan,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blueAccent,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              ),
+              child: const Text("Générer", style: TextStyle(fontFamily: 'SF Pro', fontSize: 16, color: Colors.white)),
+            ),
+            const SizedBox(height: 20),
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Text(
+                statusMessage,
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 16, fontFamily: 'SF Pro', color: Colors.black87),
+              ),
+            ),
+            if (table1.isNotEmpty) ...[
+              const Text("Table 1 (Rectangulaire)", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, fontFamily: 'SF Pro')),
+              buildRectangleTable(table1),
+            ],
+            const SizedBox(height: 20),
+            if (table2.isNotEmpty) ...[
+              const Text("Table 2 (Circulaire)", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, fontFamily: 'SF Pro')),
+              buildCircularTable(table2),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}

@@ -8,9 +8,6 @@ import logging
 app = Flask(__name__)
 CORS(app)  # Allow all origins by default
 
-logging.basicConfig(level=logging.DEBUG)
-
-
 @app.route("/get-plan", methods=["POST"])
 def get_table_plan_endpoint():
     """

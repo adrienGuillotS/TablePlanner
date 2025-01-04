@@ -1,22 +1,19 @@
+import logging
 import random
-from classes import Family, Person
-from utils import format_tables
-from people import people
 
+# Set up logging
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 def can_seat(person, table):
     if not table:
         return True
     last_person = table[-1]
     if person.gender == last_person.gender:
-        print("Cannot seta because: gender")
-        print("Person:", person.name)   
-        print("Last Person:", last_person.name)
+        logger.debug(f"Cannot seat {person.name} because of gender constraint with {last_person.name}")
         return False
     if person.family == last_person.family:
-        print("Cannot seta because: family")
-        print("Person:", person.name)
-        print("Last Person:", last_person.name)
+        logger.debug(f"Cannot seat {person.name} because they are from the same family as {last_person.name}")
         return False
     return True
 
@@ -34,48 +31,58 @@ def generate_table_plan(attendees, table_sizes):
 
     # Fill Table 1 completely before starting Table 2
     for person in attendees:
-        print("Current Person:", person.name)
+        logger.debug(f"Current Person: {person.name}")
+        
         if len(table1) < table1_size:
+            # Try seating at Table 1
             if person not in seated and can_seat(person, table1):
-                print("can seat")
+                logger.debug(f"Can seat {person.name} at Table 1")
                 table1.append(person)
                 seated.add(person)
             else:
-                # Try the next person if the current one cannot seat
-                for next_person in attendees[attendees.index(person) + 1 :]:
-                    print("Next Person:", next_person.name)
+                # Try to seat the next available person if this one cannot be seated
+                for next_person in attendees:
+                    logger.debug(f"Next Person: {next_person.name}")
                     if next_person not in seated and can_seat(next_person, table1):
-                        print("next person can seat")
+                        logger.debug(f"{next_person.name} can seat at Table 1")
                         table1.append(next_person)
                         seated.add(next_person)
-                        break
+                        break  # Proceed to next person after seating
                 else:
-                    # If no suitable person is found, force seat the current person
+                    # If no suitable next person is found, force seat the current person
                     if person not in seated:
                         table1.append(person)
                         seated.add(person)
-                        print("FORCED SEAT")
-            print("Current Table 1:", [p.name for p in table1])
-            print("Current Table 2:", [p.name for p in table2])
-            print("Seated Attendees:", {p.name for p in seated})
-            print("-" * 50)
+                        logger.debug(f"Forcing seat for {person.name} at Table 1")
+            logger.debug(f"Current Table 1: {[p.name for p in table1]}")
+            logger.debug(f"Seated Attendees: {[p.name for p in seated]}")
+            logger.debug("-" * 50)
         elif len(table2) < table2_size:
-            print("Table 1 is full")
             if person not in seated and can_seat(person, table2):
+                logger.debug(f"Can seat {person.name} at Table 2")
                 table2.append(person)
                 seated.add(person)
             else:
-                # Try the next person if the current one cannot seat
-                for next_person in attendees[attendees.index(person) + 1 :]:
+                # Try to seat the next available person at Table 2
+                seated_next = False
+                for next_person in attendees:
+                    logger.debug(f"Next Person: {next_person.name}")
                     if next_person not in seated and can_seat(next_person, table2):
+                        logger.debug(f"{next_person.name} can seat at Table 2")
                         table2.append(next_person)
                         seated.add(next_person)
-                        break
-                else:
-                    # If no suitable person is found, force seat the current person
+                        seated_next = True
+                        break  # Break once we've seated the next available person
+
+                if not seated_next:
+                    # If no suitable next person is found, force seat the current person
                     if person not in seated:
+                        logger.debug(f"Forcing seat for {person.name} at Table 2")
                         table2.append(person)
                         seated.add(person)
+            logger.debug(f"Current Table 2: {[p.name for p in table2]}")
+            logger.debug(f"Seated Attendees: {[p.name for p in seated]}")
+            logger.debug("-" * 50)
 
     # Force-seat any remaining attendees
     for person in attendees:
