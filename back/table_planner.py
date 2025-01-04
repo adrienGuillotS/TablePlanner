@@ -93,7 +93,11 @@ def generate_table_plan(attendees, table_sizes):
             elif len(table2) < table2_size:
                 table2.append(person)
                 seated.add(person)
-
+    # Ensure Polo is seated at the second-last position in Table 1
+    polo_index = next((i for i, person in enumerate(table1) if person.name == "Polo"), None)
+    if polo_index is not None and polo_index != len(table1) - 2:
+        polo = table1.pop(polo_index)
+        table1.insert(len(table1) - 1, polo)
     return table1, table2
 
 
