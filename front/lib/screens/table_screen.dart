@@ -51,6 +51,14 @@ class _TableScreenState extends State<TableScreen> {
       setState(() {
         table1 = plan['table1'];
         table2 = plan['table2'];
+
+        // Check if Polo is in table2 and move them to table1 if needed
+        final poloIndexInTable2 = table2.indexWhere((person) => person['name'] == 'Polo');
+        if (poloIndexInTable2 != -1) {
+          final polo = table2.removeAt(poloIndexInTable2);  // Remove Polo from table2
+          table1.add(polo);  // Add Polo to table1
+        }
+
         statusMessage = "Plan de table généré avec succès mamounette chérie.";
       });
     } catch (e) {
@@ -160,7 +168,7 @@ Widget buildRectangleTable(List<Map<String, dynamic>> table) {
           right: 50,
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: bottom.map((person) => Text(person['name']!, style: nameStyle)).toList(),
+            children: bottom.reversed.map((person) => Text(person['name']!, style: nameStyle)).toList(),
           ),
         ),
         // Left names (2 people)
