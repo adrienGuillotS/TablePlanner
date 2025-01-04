@@ -251,6 +251,17 @@ Widget buildCircularTable(List<Map<String, dynamic>> table) {
 
   @override
   Widget build(BuildContext context) {
+    // Group people by familyName
+    final Map<String, List<Map<String, dynamic>>> families = {};
+
+    for (var person in peopleList) {
+      final familyName = person['family'] ?? 'Unknown';
+      if (!families.containsKey(familyName)) {
+        families[familyName] = [];
+      }
+      families[familyName]?.add(person);
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text("Merci Mamounette", style: TextStyle(fontFamily: 'SF Pro')),
@@ -261,61 +272,121 @@ Widget buildCircularTable(List<Map<String, dynamic>> table) {
       body: SingleChildScrollView(
         child: Column(
           children: [
-            Wrap(
-              spacing: 8.0,
-              runSpacing: 8.0,
-              children: presence.keys.map((person) {
-                final isPresent = presence[person] ?? true;
-                return ElevatedButton(
-                  onPressed: () {
-                    setState(() {
-                      presence[person] = !(presence[person] ?? true);
-                    });
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: isPresent ? Colors.greenAccent : Colors.redAccent,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  ),
-                  child: Text(
-                    person,
-                    style: const TextStyle(fontSize: 14, fontFamily: 'SF Pro', color: Colors.white),
-                  ),
-                );
-              }).toList(),
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: generateTablePlan,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blueAccent,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              ),
-              child: const Text("Générer", style: TextStyle(fontFamily: 'SF Pro', fontSize: 16, color: Colors.white)),
-            ),
-            const SizedBox(height: 20),
+            // Split the screen into two columns using Row
             Padding(
               padding: const EdgeInsets.all(16.0),
-              child: Text(
-                statusMessage,
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 16, fontFamily: 'SF Pro', color: Colors.black87),
+              child: Row(
+                children: [
+                  // Left column: People buttons
+                  Expanded(
+                    flex: 1,
+                    child: SingleChildScrollView(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,  // Align to the left
+                        children: [
+                          for (var family in families.entries)
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,  // Align family name and buttons to the left
+                              children: [
+                                // Display the family name
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: 8.0),
+                                  child: Text(
+                                    family.key,
+                                    style: const TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                      fontFamily: 'SF Pro',
+                                      color: Colors.black87,
+                                    ),
+                                  ),
+                                ),
+                                // Display each person as a button, aligned to the left
+                                Wrap(
+                                  alignment: WrapAlignment.start,  // Align buttons to the left
+                                  spacing: 8.0,
+                                  runSpacing: 8.0,
+                                  children: family.value.map((person) {
+                                    final isPresent = presence[person['name']] ?? true;
+                                    return ElevatedButton(
+                                      onPressed: () {
+                                        setState(() {
+                                          presence[person['name']] = !(presence[person['name']] ?? true);
+                                        });
+                                      },
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: isPresent ? Colors.greenAccent : Colors.redAccent,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(12),
+                                        ),
+                                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                      ),
+                                      child: Text(
+                                        person['name'],
+                                        style: const TextStyle(fontSize: 14, fontFamily: 'SF Pro', color: Colors.white),
+                                      ),
+                                    );
+                                  }).toList(),
+                                ),
+                                const SizedBox(height: 20),
+                              ],
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  // Right column: Generated tables and "Generate Table" button
+                  Expanded(
+                    flex: 1,
+                    child: SingleChildScrollView(
+                      child: Column(
+                        children: [
+                          // "Generate Table" button at the top right
+                          Padding(
+                            padding: const EdgeInsets.all(8.0),
+                            child: Align(
+                              alignment: Alignment.topRight,
+                              child: ElevatedButton(
+                                onPressed: generateTablePlan,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.blueAccent,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                                ),
+                                child: const Text("Générer", style: TextStyle(fontFamily: 'SF Pro', fontSize: 16, color: Colors.white)),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+
+                          // Status message
+                          Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: Text(
+                              statusMessage,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(fontSize: 16, fontFamily: 'SF Pro', color: Colors.black87),
+                            ),
+                          ),
+                          if (table1.isNotEmpty) ...[
+                            const Text("Grande table", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, fontFamily: 'SF Pro')),
+                            buildRectangleTable(table1),
+                          ],
+                          const SizedBox(height: 20),
+                          if (table2.isNotEmpty) ...[
+                            const Text("Petit table", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, fontFamily: 'SF Pro')),
+                            buildCircularTable(table2),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
-            if (table1.isNotEmpty) ...[
-              const Text("Table 1 (Rectangulaire)", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, fontFamily: 'SF Pro')),
-              buildRectangleTable(table1),
-            ],
-            const SizedBox(height: 20),
-            if (table2.isNotEmpty) ...[
-              const Text("Table 2 (Circulaire)", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, fontFamily: 'SF Pro')),
-              buildCircularTable(table2),
-            ],
           ],
         ),
       ),
