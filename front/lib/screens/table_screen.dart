@@ -11,6 +11,7 @@ class _TableScreenState extends State<TableScreen> {
   List<Map<String, dynamic>> table1 = [];
   List<Map<String, dynamic>> table2 = [];
   List<Map<String, dynamic>> peopleList = [];
+  List<Map<String, dynamic>> invitedPeople = []; // To store invited guests
   Map<String, bool> presence = {};
 
   String statusMessage = "Appuyez sur le bouton pour générer un plan.";
@@ -47,7 +48,10 @@ class _TableScreenState extends State<TableScreen> {
           .where((person) => presence[person['name']] == true)
           .toList();
 
-      final plan = await ApiService.getTablePlan(presentPeople);
+      // Include invited people in the table plan
+      final allPeople = presentPeople + invitedPeople;
+
+      final plan = await ApiService.getTablePlan(allPeople);
       setState(() {
         table1 = plan['table1'];
         table2 = plan['table2'];
@@ -68,186 +72,194 @@ class _TableScreenState extends State<TableScreen> {
     }
   }
 
-Widget buildRectangleTable(List<Map<String, dynamic>> table) {
-  if (table.length < 6) {
+  // Method to add an invité
+  void addInvite(String name, String family, String gender) {
+    setState(() {
+      invitedPeople.add({'name': name, 'family': family, 'gender': gender});
+      peopleList.add({'name': name, 'family': family, 'gender': gender});
+    });
+  }
+
+  Widget buildRectangleTable(List<Map<String, dynamic>> table) {
+    if (table.length < 6) {
+      return Container(
+        child: Center(child: Text('Minimum 6 people required')),
+      );
+    }
+
+    // Find Polo and create modified table
+    List<Map<String, dynamic>> modifiedTable = List.from(table);
+    int? poloIndex;
+    for (int i = 0; i < modifiedTable.length; i++) {
+      if (modifiedTable[i]['name'] == 'Polo') {
+        poloIndex = i;
+        break;
+      }
+    }
+
+    // Calculate distribution
+    final sideCount = 2;
+    final remainingCount = modifiedTable.length - (sideCount * 2);
+    final lengthCount = remainingCount ~/ 2;
+
+    List<Map<String, dynamic>> top = [];
+    List<Map<String, dynamic>> right = [];
+    List<Map<String, dynamic>> bottom = [];
+    List<Map<String, dynamic>> left = [];
+
+    if (poloIndex != null) {
+      // Remove Polo and reorganize
+      final polo = modifiedTable.removeAt(poloIndex);
+      
+      // Distribute remaining people
+      top = modifiedTable.sublist(0, lengthCount);
+      right = modifiedTable.sublist(lengthCount, lengthCount + sideCount);
+      bottom = modifiedTable.sublist(lengthCount + sideCount, lengthCount + sideCount + lengthCount);
+      
+      // Create left side with Polo second from bottom
+      if (modifiedTable.isNotEmpty) {
+        left = [modifiedTable.last, polo];
+      } else {
+        left = [polo];
+      }
+    } else {
+      // Normal distribution without Polo
+      top = modifiedTable.sublist(0, lengthCount);
+      right = modifiedTable.sublist(lengthCount, lengthCount + sideCount);
+      bottom = modifiedTable.sublist(lengthCount + sideCount, lengthCount + sideCount + lengthCount);
+      left = modifiedTable.sublist(modifiedTable.length - sideCount);
+    }
+
+    final TextStyle nameStyle = TextStyle(
+      fontSize: 14,
+      fontWeight: FontWeight.w600,
+      color: Colors.grey.shade800,
+    );
+
     return Container(
-      child: Center(child: Text('Minimum 6 people required')),
+      width: 600,
+      height: 200,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: Colors.grey.shade300, width: 2),
+        borderRadius: BorderRadius.circular(10),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.2),
+            spreadRadius: 2,
+            blurRadius: 4,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Stack(
+        children: [
+          // Top names
+          Positioned(
+            top: 8,
+            left: 50,
+            right: 50,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: top.map((person) => Text(person['name']!, style: nameStyle)).toList(),
+            ),
+          ),
+          // Right names (2 people)
+          Positioned(
+            top: 70,
+            right: 10,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: right.map((person) => Text(person['name']!, style: nameStyle)).toList(),
+            ),
+          ),
+          // Bottom names
+          Positioned(
+            bottom: 8,
+            left: 50,
+            right: 50,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: bottom.reversed.map((person) => Text(person['name']!, style: nameStyle)).toList(),
+            ),
+          ),
+          // Left names (2 people)
+          Positioned(
+            top: 70,
+            left: 10,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: left.map((person) => Text(person['name']!, style: nameStyle)).toList(),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
-  // Find Polo and create modified table
-  List<Map<String, dynamic>> modifiedTable = List.from(table);
-  int? poloIndex;
-  for (int i = 0; i < modifiedTable.length; i++) {
-    if (modifiedTable[i]['name'] == 'Polo') {
-      poloIndex = i;
-      break;
-    }
-  }
+  Widget buildCircularTable(List<Map<String, dynamic>> table) {
+    final TextStyle nameStyle = TextStyle(
+      fontSize: 14,
+      fontWeight: FontWeight.w600,
+      color: Colors.black87,
+      fontFamily: 'SF Pro',
+    );
 
-  // Calculate distribution
-  final sideCount = 2;
-  final remainingCount = modifiedTable.length - (sideCount * 2);
-  final lengthCount = remainingCount ~/ 2;
-
-  List<Map<String, dynamic>> top = [];
-  List<Map<String, dynamic>> right = [];
-  List<Map<String, dynamic>> bottom = [];
-  List<Map<String, dynamic>> left = [];
-
-  if (poloIndex != null) {
-    // Remove Polo and reorganize
-    final polo = modifiedTable.removeAt(poloIndex);
-    
-    // Distribute remaining people
-    top = modifiedTable.sublist(0, lengthCount);
-    right = modifiedTable.sublist(lengthCount, lengthCount + sideCount);
-    bottom = modifiedTable.sublist(lengthCount + sideCount, lengthCount + sideCount + lengthCount);
-    
-    // Create left side with Polo second from bottom
-    if (modifiedTable.isNotEmpty) {
-      left = [modifiedTable.last, polo];
-    } else {
-      left = [polo];
-    }
-  } else {
-    // Normal distribution without Polo
-    top = modifiedTable.sublist(0, lengthCount);
-    right = modifiedTable.sublist(lengthCount, lengthCount + sideCount);
-    bottom = modifiedTable.sublist(lengthCount + sideCount, lengthCount + sideCount + lengthCount);
-    left = modifiedTable.sublist(modifiedTable.length - sideCount);
-  }
-
-  final TextStyle nameStyle = TextStyle(
-    fontSize: 14,
-    fontWeight: FontWeight.w600,
-    color: Colors.grey.shade800,
-  );
-
-  return Container(
-    width: 600,
-    height: 200,
-    decoration: BoxDecoration(
-      color: Colors.white,
-      border: Border.all(color: Colors.grey.shade300, width: 2),
-      borderRadius: BorderRadius.circular(10),
-      boxShadow: [
-        BoxShadow(
-          color: Colors.grey.withOpacity(0.2),
-          spreadRadius: 2,
-          blurRadius: 4,
-          offset: Offset(0, 2),
-        ),
-      ],
-    ),
-    child: Stack(
-      children: [
-        // Top names
-        Positioned(
-          top: 8,
-          left: 50,
-          right: 50,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: top.map((person) => Text(person['name']!, style: nameStyle)).toList(),
-          ),
-        ),
-        // Right names (2 people)
-        Positioned(
-          top: 70,
-          right: 10,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: right.map((person) => Text(person['name']!, style: nameStyle)).toList(),
-          ),
-        ),
-        // Bottom names
-        Positioned(
-          bottom: 8,
-          left: 50,
-          right: 50,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: bottom.reversed.map((person) => Text(person['name']!, style: nameStyle)).toList(),
-          ),
-        ),
-        // Left names (2 people)
-        Positioned(
-          top: 70,
-          left: 10,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: left.map((person) => Text(person['name']!, style: nameStyle)).toList(),
-          ),
-        ),
-      ],
-    ),
-  );
-}
-
-Widget buildCircularTable(List<Map<String, dynamic>> table) {
-  final TextStyle nameStyle = TextStyle(
-    fontSize: 14,
-    fontWeight: FontWeight.w600,
-    color: Colors.black87,
-    fontFamily: 'SF Pro',
-  );
-
-  return SizedBox(
-    width: 300,
-    height: 300,
-    child: Stack(
-      alignment: Alignment.center,
-      children: [
-        // Table circle
-        Container(
-          width: 200,
-          height: 200,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            border: Border.all(color: Colors.blueAccent.withOpacity(0.5), width: 2),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                spreadRadius: 2,
-                blurRadius: 4,
-                offset: Offset(0, 3),
-              ),
-            ],
-          ),
-        ),
-        // Names around circle
-        ...table.asMap().entries.map((entry) {
-          final index = entry.key;
-          final person = entry.value['name'];
-          final angle = (2 * pi * index) / table.length;
-          
-          // Radius for name placement
-          final radius = 120.0;
-          final x = cos(angle) * radius;
-          final y = sin(angle) * radius;
-
-          // Calculate text offset based on angle
-          final textOffsetX = x > 0 ? -20.0 : x < 0 ? -40.0 : -30.0;
-          final textOffsetY = y > 0 ? -10.0 : y < 0 ? -10.0 : -10.0;
-
-          return Positioned(
-            left: 150 + x + textOffsetX,
-            top: 150 + y + textOffsetY,
-            child: Container(
-              padding: EdgeInsets.all(4),
-              child: Text(
-                person!,
-                style: nameStyle,
-                textAlign: TextAlign.center,
-              ),
+    return SizedBox(
+      width: 300,
+      height: 300,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          // Table circle
+          Container(
+            width: 200,
+            height: 200,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.blueAccent.withOpacity(0.5), width: 2),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  spreadRadius: 2,
+                  blurRadius: 4,
+                  offset: Offset(0, 3),
+                ),
+              ],
             ),
-          );
-        }).toList(),
-      ],
-    ),
-  );
-}
+          ),
+          // Names around circle
+          ...table.asMap().entries.map((entry) {
+            final index = entry.key;
+            final person = entry.value['name'];
+            final angle = (2 * pi * index) / table.length;
+            
+            // Radius for name placement
+            final radius = 120.0;
+            final x = cos(angle) * radius;
+            final y = sin(angle) * radius;
+
+            // Calculate text offset based on angle
+            final textOffsetX = x > 0 ? -20.0 : x < 0 ? -40.0 : -30.0;
+            final textOffsetY = y > 0 ? -10.0 : y < 0 ? -10.0 : -10.0;
+
+            return Positioned(
+              left: 150 + x + textOffsetX,
+              top: 150 + y + textOffsetY,
+              child: Container(
+                padding: EdgeInsets.all(4),
+                child: Text(
+                  person!,
+                  style: nameStyle,
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            );
+          }).toList(),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -344,47 +356,103 @@ Widget buildCircularTable(List<Map<String, dynamic>> table) {
                         children: [
                           // "Generate Table" button at the top right
                           Padding(
-                            padding: const EdgeInsets.all(8.0),
-                            child: Align(
-                              alignment: Alignment.topRight,
-                              child: ElevatedButton(
-                                onPressed: generateTablePlan,
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.blueAccent,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                                ),
-                                child: const Text("Générer", style: TextStyle(fontFamily: 'SF Pro', fontSize: 16, color: Colors.white)),
+                            padding: const EdgeInsets.all(16.0),
+                            child: ElevatedButton(
+                              onPressed: generateTablePlan,
+                              style: ElevatedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+                                backgroundColor: Colors.blueAccent,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                              child: const Text(
+                                "Générer le plan de table",
+                                style: TextStyle(fontFamily: 'SF Pro'),
                               ),
                             ),
                           ),
+                          
+                          // Display tables (either rectangular or circular)
+                          if (table1.isNotEmpty) buildRectangleTable(table1),
                           const SizedBox(height: 20),
+                          if (table2.isNotEmpty) buildCircularTable(table2),
 
-                          // Status message
+                          // Invite button at the bottom of the right column
                           Padding(
                             padding: const EdgeInsets.all(16.0),
-                            child: Text(
-                              statusMessage,
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(fontSize: 16, fontFamily: 'SF Pro', color: Colors.black87),
+                            child: ElevatedButton(
+                              onPressed: () {
+                                // Show dialog to add invite
+                                showDialog(
+                                  context: context,
+                                  builder: (BuildContext context) {
+                                    String name = '';
+                                    String family = '';
+                                    String gender = '';
+                                    
+                                    return AlertDialog(
+                                      title: Text("Ajouter un invité"),
+                                      content: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          TextField(
+                                            onChanged: (value) => name = value,
+                                            decoration: InputDecoration(hintText: "Nom de l'invité"),
+                                          ),
+                                          TextField(
+                                            onChanged: (value) => family = value,
+                                            decoration: InputDecoration(hintText: "Nom de famille"),
+                                          ),
+                                          TextField(
+                                            onChanged: (value) => gender = value,
+                                            decoration: InputDecoration(hintText: "Sexe"),
+                                          ),
+                                        ],
+                                      ),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () {
+                                            Navigator.of(context).pop();
+                                          },
+                                          child: Text("Annuler"),
+                                        ),
+                                        ElevatedButton(
+                                          onPressed: () {
+                                            addInvite(name, family, gender);
+                                            Navigator.of(context).pop();
+                                          },
+                                          child: Text("Ajouter l'invité"),
+                                        ),
+                                      ],
+                                    );
+                                  },
+                                );
+                              },
+                              style: ElevatedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+                                backgroundColor: Colors.greenAccent,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                              child: const Text(
+                                "+ Ajouter un invité",
+                                style: TextStyle(fontFamily: 'SF Pro'),
+                              ),
                             ),
                           ),
-                          if (table1.isNotEmpty) ...[
-                            const Text("Grande table", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, fontFamily: 'SF Pro')),
-                            buildRectangleTable(table1),
-                          ],
-                          const SizedBox(height: 20),
-                          if (table2.isNotEmpty) ...[
-                            const Text("Petit table", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, fontFamily: 'SF Pro')),
-                            buildCircularTable(table2),
-                          ],
                         ],
                       ),
                     ),
                   ),
                 ],
+              ),
+            ),
+
+            // Display the status message at the bottom of the screen
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Text(
+                statusMessage,
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, fontFamily: 'SF Pro', color: Colors.black87),
               ),
             ),
           ],
