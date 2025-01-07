@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'screens/table_screen.dart';
 
 void main() {
-  runApp(const TablePlannerApp());
+  runApp(
+    const ProviderScope(
+      child: TablePlannerApp(),
+    ),
+  );
 }
 
 class TablePlannerApp extends StatelessWidget {
@@ -11,7 +16,12 @@ class TablePlannerApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      home: TableScreen(), // Supprimé "const" ici
+      title: 'Plan de Table',
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+        visualDensity: VisualDensity.adaptivePlatformDensity,
+      ),
+      home: TableScreen(),
     );
   }
 }

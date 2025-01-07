@@ -1,53 +1,114 @@
 import 'package:flutter/material.dart';
-import '../services/api_service.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:math';
-enum Gender { homme, femme }
-class TableScreen extends StatefulWidget {
+import '../models/person.dart';
+import '../services/table_planner_service.dart';
+import '../providers/table_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
+
+final List<Person> initialPeople = [
+  // Famille Chaufour
+  Person(name: "Mamoune", gender: "Female", family: "Chaufour"),
+  Person(name: "Polo", gender: "Male", family: "Chaufour"),
+  
+  // Famille ChaufourDablanc
+  Person(name: "Suzie", gender: "Female", family: "ChaufourDablanc"),
+  Person(name: "Oscar", gender: "Male", family: "ChaufourDablanc"),
+  Person(name: "Juliette", gender: "Female", family: "ChaufourDablanc"),
+  Person(name: "Romain", gender: "Male", family: "ChaufourDablanc"),
+  
+  // Famille Guillot
+  Person(name: "JB", gender: "Male", family: "Guillot"),
+  Person(name: "Séverine", gender: "Female", family: "Guillot"),
+  Person(name: "Alix", gender: "Female", family: "Guillot"),
+  Person(name: "Maxou", gender: "Male", family: "Guillot"),
+  Person(name: "Sixtine", gender: "Female", family: "Guillot"),
+  Person(name: "Adrien", gender: "Male", family: "Guillot"),
+  
+  // Famille Cubertafond
+  Person(name: "Judith", gender: "Female", family: "Cubertafond"),
+  Person(name: "MartinCub", gender: "Male", family: "Cubertafond"),
+  Person(name: "Honorine", gender: "Female", family: "Cubertafond"),
+  Person(name: "Dazz", gender: "Male", family: "Cubertafond"),
+  Person(name: "Elise", gender: "Female", family: "Cubertafond"),
+  
+  // Famille Poulain
+  Person(name: "Kieran", gender: "Male", family: "Poulain"),
+  Person(name: "Marie", gender: "Female", family: "Poulain"),
+  Person(name: "Melchior", gender: "Male", family: "Poulain"),
+  Person(name: "Alma", gender: "Female", family: "Poulain"),
+  Person(name: "Amaury", gender: "Male", family: "Poulain"),
+  
+  // Famille ChaufourHauret
+  Person(name: "Martin", gender: "Male", family: "ChaufourHauret"),
+  Person(name: "Carine", gender: "Female", family: "ChaufourHauret"),
+  Person(name: "Ernest", gender: "Male", family: "ChaufourHauret"),
+  Person(name: "Stan", gender: "Male", family: "ChaufourHauret"),
+  Person(name: "Laure", gender: "Female", family: "ChaufourHauret"),
+];
+
+class TableScreen extends ConsumerStatefulWidget {
   @override
-  _TableScreenState createState() => _TableScreenState();
+  ConsumerState<TableScreen> createState() => _TableScreenState();
 }
 
-class _TableScreenState extends State<TableScreen> {
-  List<Map<String, dynamic>> table1 = [];
-  List<Map<String, dynamic>> table2 = [];
-  List<Map<String, dynamic>> peopleList = [];
-  List<Map<String, dynamic>> invitedPeople = []; // To store invited guests
+class _TableScreenState extends ConsumerState<TableScreen> {
+  final _tablePlannerService = TablePlannerService();
+  List<Person> peopleList = [];
+  List<Person> invitedPeople = [];
   Map<String, bool> presence = {};
-
   String statusMessage = "Appuyez sur le bouton pour générer un plan.";
 
-
-  // Modify initState
   @override
   void initState() {
     super.initState();
-    fetchPeople();
-    _initializeData();
+    _loadSavedData();
   }
 
-  Future<void> _initializeData() async {
+  Future<void> _loadSavedData() async {
+    final prefs = await SharedPreferences.getInstance();
     try {
-      final loadedInvites = await InvitedPeopleService.loadInvitedPeople();
-      setState(() {
-        invitedPeople = loadedInvites;
-      });
+      final String? savedPeopleJson = prefs.getString('people');
+      final String? savedInvitedJson = prefs.getString('invited');
+      
+      if (savedPeopleJson != null) {
+        final List<dynamic> decoded = jsonDecode(savedPeopleJson);
+        setState(() {
+          peopleList = decoded.map((json) => Person.fromJson(json)).toList();
+        });
+      } else {
+        setState(() {
+          peopleList = List.from(initialPeople);
+        });
+      }
+
+      for (var person in peopleList) {
+        presence[person.name] = true;
+      }
+
+      if (savedInvitedJson != null) {
+        final List<dynamic> decoded = jsonDecode(savedInvitedJson);
+        setState(() {
+          invitedPeople = decoded.map((json) => Person.fromJson(json)).toList();
+        });
+      }
     } catch (e) {
       setState(() {
         statusMessage = "Erreur lors du chargement des données: $e";
+        peopleList = List.from(initialPeople);
+        for (var person in peopleList) {
+          presence[person.name] = true;
+        }
       });
     }
   }
 
-  Future<void> addInvite(String name, String family, String gender) async {
-    setState(() {
-      final newInvite = {'name': name, 'family': family, 'gender': gender};
-      invitedPeople.add(newInvite);
-      peopleList.add(newInvite);
-      presence[name] = true;
-    });
-    
+  Future<void> _saveData() async {
+    final prefs = await SharedPreferences.getInstance();
     try {
-      await InvitedPeopleService.saveInvitedPeople(invitedPeople);
+      await prefs.setString('people', jsonEncode(peopleList.map((p) => p.toJson()).toList()));
+      await prefs.setString('invited', jsonEncode(invitedPeople.map((p) => p.toJson()).toList()));
     } catch (e) {
       setState(() {
         statusMessage = "Erreur lors de la sauvegarde: $e";
@@ -55,102 +116,81 @@ class _TableScreenState extends State<TableScreen> {
     }
   }
 
-  void fetchPeople() async {
-    try {
-      final people = await ApiService.getPeople();
-      setState(() {
-        peopleList = people;
-        for (var person in people) {
-          presence[person['name']] = true;
-        }
-      });
-    } catch (e) {
-      setState(() {
-        statusMessage = "Erreur lors de la récupération des personnes.";
-      });
-    }
+  Future<void> addInvite(String name, String family, String gender) async {
+    final newPerson = Person(
+      name: name,
+      family: family,
+      gender: gender,
+    );
+
+    setState(() {
+      invitedPeople.add(newPerson);
+      peopleList.add(newPerson);
+      presence[name] = true;
+    });
+    
+    await _saveData();
   }
 
-  void generateTablePlan() async {
+  void generateTablePlan() {
     setState(() {
-      statusMessage = "Chargement en cours...";
+      statusMessage = "Génération du plan...";
     });
 
     try {
       final presentPeople = peopleList
-          .where((person) => presence[person['name']] == true)
+          .where((person) => presence[person.name] == true)
           .toList();
 
-      // Include invited people in the table plan
-      final allPeople = presentPeople + invitedPeople;
+      final result = _tablePlannerService.generateTablePlan(
+        presentPeople,
+        TableSizes(20, 7),
+      );
 
-      final plan = await ApiService.getTablePlan(allPeople);
+      ref.read(tablePlanProvider.notifier).state = result;
+      
       setState(() {
-        table1 = plan['table1'];
-        table2 = plan['table2'];
-
-        // Check if Polo is in table2 and move them to table1 if needed
-        final poloIndexInTable2 = table2.indexWhere((person) => person['name'] == 'Polo');
-        if (poloIndexInTable2 != -1) {
-          final polo = table2.removeAt(poloIndexInTable2);  // Remove Polo from table2
-          table1.add(polo);  // Add Polo to table1
-        }
-
-        statusMessage = "Plan de table généré avec succès mamounette chérie.";
+        statusMessage = "Plan de table généré avec succès !";
       });
     } catch (e) {
       setState(() {
-        statusMessage = "Erreur : Impossible de générer le plan mamoune appelle adrien et oscar.";
+        statusMessage = "Erreur lors de la génération du plan.";
       });
     }
   }
 
-  // Method to add an invité
-
-  Widget buildRectangleTable(List<Map<String, dynamic>> table) {
+  Widget buildRectangleTable(List<Person> table) {
     if (table.length < 6) {
       return Container(
-        child: Center(child: Text('Minimum 6 people required')),
+        child: Center(child: Text('Minimum 6 personnes requises')),
       );
     }
 
-    // Find Polo and create modified table
-    List<Map<String, dynamic>> modifiedTable = List.from(table);
-    int? poloIndex;
-    for (int i = 0; i < modifiedTable.length; i++) {
-      if (modifiedTable[i]['name'] == 'Polo') {
-        poloIndex = i;
-        break;
-      }
-    }
+    List<Person> modifiedTable = List.from(table);
+    int poloIndex = modifiedTable.indexWhere((p) => p.name == 'Polo');
 
-    // Calculate distribution
     final sideCount = 2;
     final remainingCount = modifiedTable.length - (sideCount * 2);
     final lengthCount = remainingCount ~/ 2;
 
-    List<Map<String, dynamic>> top = [];
-    List<Map<String, dynamic>> right = [];
-    List<Map<String, dynamic>> bottom = [];
-    List<Map<String, dynamic>> left = [];
+    List<Person> top = [];
+    List<Person> right = [];
+    List<Person> bottom = [];
+    List<Person> left = [];
 
-    if (poloIndex != null) {
-      // Remove Polo and reorganize
+    if (poloIndex != -1) {
       final polo = modifiedTable.removeAt(poloIndex);
       
-      // Distribute remaining people
       top = modifiedTable.sublist(0, lengthCount);
       right = modifiedTable.sublist(lengthCount, lengthCount + sideCount);
       bottom = modifiedTable.sublist(lengthCount + sideCount, lengthCount + sideCount + lengthCount);
       
-      // Create left side with Polo second from bottom
       if (modifiedTable.isNotEmpty) {
         left = [modifiedTable.last, polo];
       } else {
         left = [polo];
       }
     } else {
-      // Normal distribution without Polo
       top = modifiedTable.sublist(0, lengthCount);
       right = modifiedTable.sublist(lengthCount, lengthCount + sideCount);
       bottom = modifiedTable.sublist(lengthCount + sideCount, lengthCount + sideCount + lengthCount);
@@ -181,168 +221,185 @@ class _TableScreenState extends State<TableScreen> {
       ),
       child: Stack(
         children: [
-          // Top names
           Positioned(
             top: 8,
             left: 50,
             right: 50,
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: top.map((person) => Text(person['name']!, style: nameStyle)).toList(),
+              children: top.map((person) => Text(person.name, style: nameStyle)).toList(),
             ),
           ),
-          // Right names (2 people)
           Positioned(
             top: 70,
             right: 10,
             child: Column(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: right.map((person) => Text(person['name']!, style: nameStyle)).toList(),
+              children: right.map((person) => Text(person.name, style: nameStyle)).toList(),
             ),
           ),
-          // Bottom names
           Positioned(
             bottom: 8,
             left: 50,
             right: 50,
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: bottom.reversed.map((person) => Text(person['name']!, style: nameStyle)).toList(),
+              children: bottom.map((person) => Text(person.name, style: nameStyle)).toList(),
             ),
           ),
-          // Left names (2 people)
           Positioned(
             top: 70,
             left: 10,
             child: Column(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: left.map((person) => Text(person['name']!, style: nameStyle)).toList(),
+              children: left.map((person) => Text(person.name, style: nameStyle)).toList(),
             ),
           ),
         ],
       ),
     );
   }
-// Add this widget method in _TableScreenState class
-Widget buildInvitedPeopleSection() {
-  if (invitedPeople.isEmpty) return SizedBox.shrink();
 
-  final Map<String, List<Map<String, dynamic>>> invitedFamilies = {};
-  
-  for (var person in invitedPeople) {
-    final familyName = person['family'] ?? 'Unknown';
-    if (!invitedFamilies.containsKey(familyName)) {
-      invitedFamilies[familyName] = [];
+  Widget buildRoundTable(List<Person> table) {
+    if (table.isEmpty) {
+      return Container(
+        child: Center(child: Text('Pas de table ronde nécessaire')),
+      );
     }
-    invitedFamilies[familyName]?.add(person);
-  }
-  
 
-  return Container(
-    padding: EdgeInsets.all(16),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          "Invités ajoutés",
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            fontFamily: 'SF Pro',
-          ),
-        ),
-        SizedBox(height: 16),
-        for (var family in invitedFamilies.entries)
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                family.key,
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.grey.shade700,
-                ),
-              ),
-              Wrap(
-                spacing: 8,
-                children: family.value.map((person) => Chip(
-                  label: Text(person['name']!),
-                  onDeleted: () async {
-                    setState(() {
-                      invitedPeople.remove(person);
-                      peopleList.removeWhere((p) => p['name'] == person['name']);
-                    });
-                    await InvitedPeopleService.saveInvitedPeople(invitedPeople);
-                  },
-                )).toList(),
-              ),
-              SizedBox(height: 12),
-            ],
-          ),
-      ],
-    ),
-  );
-}
-  Widget buildCircularTable(List<Map<String, dynamic>> table) {
     final TextStyle nameStyle = TextStyle(
       fontSize: 14,
       fontWeight: FontWeight.w600,
-      color: Colors.black87,
-      fontFamily: 'SF Pro',
+      color: Colors.grey.shade800,
     );
 
-    return SizedBox(
+    return Container(
       width: 300,
       height: 300,
       child: Stack(
-        alignment: Alignment.center,
         children: [
-          // Table circle
-          Container(
-            width: 200,
-            height: 200,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(color: Colors.blueAccent.withOpacity(0.5), width: 2),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  spreadRadius: 2,
-                  blurRadius: 4,
-                  offset: Offset(0, 3),
+          Center(
+            child: Container(
+              width: 250,
+              height: 250,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.grey.shade300, width: 2),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.grey.withOpacity(0.2),
+                    spreadRadius: 2,
+                    blurRadius: 4,
+                    offset: Offset(0, 2),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          ...List.generate(table.length, (index) {
+            final angle = (2 * pi * index) / table.length - (pi / 2);
+            final radius = 100.0;
+            final x = cos(angle) * radius;
+            final y = sin(angle) * radius;
+            
+            return Positioned(
+              left: 150 + x - 40,
+              top: 150 + y - 10,
+              child: Text(
+                table[index].name,
+                style: nameStyle,
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFamilySection(String familyName, List<Person> familyMembers) {
+    return ExpansionTile(
+      title: Text(familyName),
+      children: familyMembers.map((person) {
+        final isInvited = invitedPeople.any((p) => p.name == person.name);
+        return ListTile(
+          title: Text(person.name),
+          subtitle: Text(person.gender == 'Male' ? 'Homme' : 'Femme'),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Checkbox(
+                value: presence[person.name] ?? true,
+                onChanged: (bool? value) {
+                  setState(() {
+                    presence[person.name] = value ?? true;
+                  });
+                },
+              ),
+              if (isInvited)
+                IconButton(
+                  icon: Icon(Icons.delete, color: Colors.red),
+                  onPressed: () async {
+                    setState(() {
+                      peopleList.removeWhere((p) => p.name == person.name);
+                      invitedPeople.removeWhere((p) => p.name == person.name);
+                      presence.remove(person.name);
+                    });
+                    await _saveData();
+                  },
+                ),
+            ],
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildInvitedList() {
+    // Grouper les personnes par famille
+    Map<String, List<Person>> families = {};
+    List<Person> invited = [];
+
+    for (var person in peopleList) {
+      if (invitedPeople.any((p) => p.name == person.name)) {
+        invited.add(person);
+      } else {
+        if (!families.containsKey(person.family)) {
+          families[person.family] = [];
+        }
+        families[person.family]!.add(person);
+      }
+    }
+
+    return Card(
+      child: Column(
+        children: [
+          Padding(
+            padding: EdgeInsets.all(16.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'La Famille',
+                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                ),
+                IconButton(
+                  icon: Icon(Icons.person_add),
+                  onPressed: () {
+                    showDialog(
+                      context: context,
+                      builder: (context) => AddInviteDialog(
+                        onAdd: addInvite,
+                      ),
+                    );
+                  },
                 ),
               ],
             ),
           ),
-          // Names around circle
-          ...table.asMap().entries.map((entry) {
-            final index = entry.key;
-            final person = entry.value['name'];
-            final angle = (2 * pi * index) / table.length;
-            
-            // Radius for name placement
-            final radius = 120.0;
-            final x = cos(angle) * radius;
-            final y = sin(angle) * radius;
-
-            // Calculate text offset based on angle
-            final textOffsetX = x > 0 ? -20.0 : x < 0 ? -40.0 : -30.0;
-            final textOffsetY = y > 0 ? -10.0 : y < 0 ? -10.0 : -10.0;
-
-            return Positioned(
-              left: 150 + x + textOffsetX,
-              top: 150 + y + textOffsetY,
-              child: Container(
-                padding: EdgeInsets.all(4),
-                child: Text(
-                  person!,
-                  style: nameStyle,
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            );
-          }).toList(),
+          ...families.entries.map((entry) => _buildFamilySection(entry.key, entry.value)).toList(),
+          if (invited.isNotEmpty)
+            _buildFamilySection('Invités', invited),
         ],
       ),
     );
@@ -350,262 +407,127 @@ Widget buildInvitedPeopleSection() {
 
   @override
   Widget build(BuildContext context) {
-    // Group people by familyName
-     final Map<String, List<Map<String, dynamic>>> families = {};
-
-  // First add regular people
-  for (var person in peopleList.where((p) => !invitedPeople.any((i) => i['name'] == p['name']))) {
-    final familyName = person['family'] ?? 'Unknown';
-    if (!families.containsKey(familyName)) {
-      families[familyName] = [];
-    }
-    families[familyName]?.add(person);
-  }
-
-  // Then add invited people
-  for (var invitedPerson in invitedPeople) {
-    final familyName = invitedPerson['family'] ?? 'Unknown';
-    if (!families.containsKey(familyName)) {
-      families[familyName] = [];
-    }
-    if (!families[familyName]!.any((p) => p['name'] == invitedPerson['name'])) {
-      families[familyName]?.add(invitedPerson);
-    }
-  }
-    
+    final tableResult = ref.watch(tablePlanProvider);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Merci Mamounette", style: TextStyle(fontFamily: 'SF Pro')),
-        backgroundColor: Colors.white,
-        elevation: 0,
-        iconTheme: IconThemeData(color: Colors.black87),
+        title: Text('Plan de Table'),
       ),
       body: SingleChildScrollView(
-        child: Column(
-          children: [
-            // Split the screen into two columns using Row
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Row(
-                children: [
-                  // Left column: People buttons
-                  Expanded(
-                    flex: 1,
-                    child: SingleChildScrollView(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,  // Align to the left
-                        children: [
-                          for (var family in families.entries)
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,  // Align family name and buttons to the left
-                              children: [
-                                // Display the family name
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(vertical: 8.0),
-                                  child: Text(
-                                    family.key,
-                                    style: const TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold,
-                                      fontFamily: 'SF Pro',
-                                      color: Colors.black87,
-                                    ),
-                                  ),
-                                ),
-                                // Display each person as a button, aligned to the left
-                                Wrap(
-                                  alignment: WrapAlignment.start,  // Align buttons to the left
-                                  spacing: 8.0,
-                                  runSpacing: 8.0,
-                                  // In the build method, replace the button creation part:
-                                  children: family.value.map((person) {
-                                    final isPresent = presence[person['name']] ?? true;
-                                    final isInvited = invitedPeople.any((p) => p['name'] == person['name']);
-                                    
-                                    return Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        ElevatedButton(
-                                          onPressed: () {
-                                            setState(() {
-                                              presence[person['name']] = !(presence[person['name']] ?? true);
-                                            });
-                                          },
-                                          style: ElevatedButton.styleFrom(
-                                            backgroundColor: isPresent ? Colors.greenAccent : Colors.redAccent,
-                                            shape: RoundedRectangleBorder(
-                                              borderRadius: BorderRadius.circular(12),
-                                            ),
-                                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                                          ),
-                                          child: Text(
-                                            person['name'],
-                                            style: const TextStyle(
-                                              fontSize: 14, 
-                                              fontFamily: 'SF Pro', 
-                                              color: Colors.white
-                                            ),
-                                          ),
-                                        ),
-                                        if (isInvited)
-                                          IconButton(
-                                            icon: Icon(Icons.close, size: 18),
-                                            onPressed: () async {
-                                              setState(() {
-                                                invitedPeople.removeWhere((p) => p['name'] == person['name']);
-                                                peopleList.removeWhere((p) => p['name'] == person['name']);
-                                              });
-                                              await InvitedPeopleService.saveInvitedPeople(invitedPeople);
-                                            },
-                                          ),
-                                      ],
-                                    );
-                                  }).toList(),
-                                ),
-                                const SizedBox(height: 20),
-                              ],
-                            ),
-                        ],
-                      ),
-                    ),
-                  ),
-
-                  // Right column: Generated tables and "Generate Table" button
-                  Expanded(
-                    flex: 1,
-                    child: SingleChildScrollView(
-                      child: Column(
-                        children: [
-                          // "Generate Table" button at the top right
-                          Padding(
-                            padding: const EdgeInsets.all(16.0),
-                            child: ElevatedButton(
-                              onPressed: generateTablePlan,
-                              style: ElevatedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
-                                backgroundColor: Colors.blueAccent,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                              ),
-                              child: const Text(
-                                "Générer le plan de table",
-                                style: TextStyle(fontFamily: 'SF Pro'),
-                              ),
-                            ),
-                          ),
-                          
-                          // Display tables (either rectangular or circular)
-                         
-                          if (table1.isNotEmpty) buildRectangleTable(table1),
-                          const SizedBox(height: 20),
-                          if (table2.isNotEmpty) buildCircularTable(table2),
-
-                          // Invite button at the bottom of the right column
-                          Padding(
-                            padding: const EdgeInsets.all(16.0),
-                            child: ElevatedButton(
-                              onPressed: () {
-                                // Show dialog to add invite
-                               showDialog(
-                                  context: context,
-                                  builder: (BuildContext context) {
-                                    String name = '';
-                                    String family = '';
-                                    Gender? selectedGender;
-                                    
-                                    return AlertDialog(
-                                      title: Text("Ajouter un invité"),
-                                      content: Column(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          TextField(
-                                            onChanged: (value) => name = value,
-                                            decoration: InputDecoration(
-                                              labelText: "Nom de l'invité",
-                                              border: OutlineInputBorder(),
-                                            ),
-                                          ),
-                                          SizedBox(height: 16),
-                                          TextField(
-                                            onChanged: (value) => family = value,
-                                            decoration: InputDecoration(
-                                              labelText: "Nom de famille",
-                                              border: OutlineInputBorder(),
-                                            ),
-                                          ),
-                                          SizedBox(height: 16),
-                                          DropdownButtonFormField<Gender>(
-                                            value: selectedGender,
-                                            decoration: InputDecoration(
-                                              labelText: "Genre",
-                                              border: OutlineInputBorder(),
-                                            ),
-                                            items: Gender.values.map((gender) {
-                                              return DropdownMenuItem(
-                                                value: gender,
-                                                child: Text(gender == Gender.homme ? 'Homme' : 'Femme'),
-                                              );
-                                            }).toList(),
-                                            onChanged: (Gender? value) {
-                                              selectedGender = value;
-                                            },
-                                          ),
-                                        ],
-                                      ),
-                                      actions: [
-                                        TextButton(
-                                          onPressed: () => Navigator.of(context).pop(),
-                                          child: Text("Annuler"),
-                                        ),
-                                        ElevatedButton(
-                                          onPressed: () {
-                                            if (name.isNotEmpty && family.isNotEmpty && selectedGender != null) {
-                                              addInvite(
-                                                name, 
-                                                family, 
-                                                selectedGender == Gender.homme ? 'M' : 'F'
-                                              );
-                                              Navigator.of(context).pop();
-                                            }
-                                          },
-                                          child: Text("Ajouter l'invité"),
-                                        ),
-                                      ],
-                                    );
-                                  },
-                                );
-                              },
-                              style: ElevatedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
-                                backgroundColor: Colors.greenAccent,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                              ),
-                              child: const Text(
-                                "+ Ajouter un invité",
-                                style: TextStyle(fontFamily: 'SF Pro'),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            // Display the status message at the bottom of the screen
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Text(
+        child: Padding(
+          padding: EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
                 statusMessage,
+                style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, fontFamily: 'SF Pro', color: Colors.black87),
               ),
-            ),
-          ],
+              SizedBox(height: 20),
+              Text(
+                'Table Rectangulaire',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                textAlign: TextAlign.center,
+              ),
+              SizedBox(height: 10),
+              Center(child: buildRectangleTable(tableResult.table1)),
+              if (tableResult.table2.isNotEmpty) ...[
+                SizedBox(height: 40),
+                Text(
+                  'Table Ronde (invités supplémentaires)',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  textAlign: TextAlign.center,
+                ),
+                SizedBox(height: 10),
+                Center(child: buildRoundTable(tableResult.table2)),
+              ],
+              SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: generateTablePlan,
+                child: Text('Générer le Plan'),
+                style: ElevatedButton.styleFrom(
+                  padding: EdgeInsets.symmetric(vertical: 15),
+                  textStyle: TextStyle(fontSize: 18),
+                ),
+              ),
+              SizedBox(height: 20),
+              _buildInvitedList(),
+            ],
+          ),
         ),
       ),
     );
+  }
+}
+
+class AddInviteDialog extends StatefulWidget {
+  final Function(String name, String family, String gender) onAdd;
+
+  AddInviteDialog({required this.onAdd});
+
+  @override
+  _AddInviteDialogState createState() => _AddInviteDialogState();
+}
+
+class _AddInviteDialogState extends State<AddInviteDialog> {
+  final _nameController = TextEditingController();
+  final _familyController = TextEditingController();
+  String _selectedGender = 'Male';
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text('Ajouter un invité'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TextField(
+            controller: _nameController,
+            decoration: InputDecoration(labelText: 'Nom'),
+          ),
+          TextField(
+            controller: _familyController,
+            decoration: InputDecoration(labelText: 'Famille'),
+          ),
+          DropdownButton<String>(
+            value: _selectedGender,
+            items: ['Male', 'Female'].map((String value) {
+              return DropdownMenuItem<String>(
+                value: value,
+                child: Text(value == 'Male' ? 'Homme' : 'Femme'),
+              );
+            }).toList(),
+            onChanged: (String? newValue) {
+              setState(() {
+                _selectedGender = newValue!;
+              });
+            },
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text('Annuler'),
+        ),
+        TextButton(
+          onPressed: () {
+            if (_nameController.text.isNotEmpty && _familyController.text.isNotEmpty) {
+              widget.onAdd(_nameController.text, _familyController.text, _selectedGender);
+              Navigator.pop(context);
+            }
+          },
+          child: Text('Ajouter'),
+        ),
+      ],
+    );
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _familyController.dispose();
+    super.dispose();
   }
 }
