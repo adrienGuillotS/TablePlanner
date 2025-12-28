@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:math';
 import '../models/person.dart';
@@ -11,7 +12,6 @@ final List<Person> initialPeople = [
   // Famille Chaufour
   Person(name: "Mamoune", gender: "Female", family: "Chaufour"),
   Person(name: "Polo", gender: "Male", family: "Chaufour"),
-  
   // Famille ChaufourDablanc
   Person(name: "Suzie", gender: "Female", family: "ChaufourDablanc"),
   Person(name: "Oscar", gender: "Male", family: "ChaufourDablanc"),
@@ -58,7 +58,7 @@ class _TableScreenState extends ConsumerState<TableScreen> {
   List<Person> peopleList = [];
   List<Person> invitedPeople = [];
   Map<String, bool> presence = {};
-  String statusMessage = "Appuyez sur le bouton pour générer un plan.";
+  String statusMessage = "Appuie sur le bouton pour générer un plan Mamoune.";
 
   @override
   void initState() {
@@ -150,11 +150,11 @@ class _TableScreenState extends ConsumerState<TableScreen> {
       ref.read(tablePlanProvider.notifier).state = result;
       
       setState(() {
-        statusMessage = "Plan de table généré avec succès !";
+        statusMessage = "Plan de table généré avec succès mamounette!";
       });
     } catch (e) {
       setState(() {
-        statusMessage = "Erreur lors de la génération du plan.";
+        statusMessage = "Erreur lors de la génération du plan. Mince appelle Adrien ou Oscar!";
       });
     }
   }
@@ -162,7 +162,12 @@ class _TableScreenState extends ConsumerState<TableScreen> {
   Widget buildRectangleTable(List<Person> table) {
     if (table.length < 6) {
       return Container(
-        child: Center(child: Text('Minimum 6 personnes requises')),
+        child: Center(
+          child: Text(
+            'Minimum 6 personnes requises',
+            style: CupertinoTheme.of(context).textTheme.textStyle,
+          ),
+        ),
       );
     }
 
@@ -180,11 +185,9 @@ class _TableScreenState extends ConsumerState<TableScreen> {
 
     if (poloIndex != -1) {
       final polo = modifiedTable.removeAt(poloIndex);
-      
       top = modifiedTable.sublist(0, lengthCount);
       right = modifiedTable.sublist(lengthCount, lengthCount + sideCount);
       bottom = modifiedTable.sublist(lengthCount + sideCount, lengthCount + sideCount + lengthCount);
-      
       if (modifiedTable.isNotEmpty) {
         left = [modifiedTable.last, polo];
       } else {
@@ -197,62 +200,88 @@ class _TableScreenState extends ConsumerState<TableScreen> {
       left = modifiedTable.sublist(modifiedTable.length - sideCount);
     }
 
-    final TextStyle nameStyle = TextStyle(
-      fontSize: 14,
+    final TextStyle nameStyle = CupertinoTheme.of(context).textTheme.textStyle.copyWith(
+      fontSize: 11,
       fontWeight: FontWeight.w600,
-      color: Colors.grey.shade800,
     );
 
     return Container(
-      width: 600,
-      height: 200,
+      width: MediaQuery.of(context).size.width * 0.9,
+      height: 250,
+      margin: EdgeInsets.symmetric(horizontal: 10),
       decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border.all(color: Colors.grey.shade300, width: 2),
+        color: CupertinoColors.systemBackground,
+        border: Border.all(color: CupertinoColors.systemGrey5),
         borderRadius: BorderRadius.circular(10),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.2),
-            spreadRadius: 2,
-            blurRadius: 4,
-            offset: Offset(0, 2),
-          ),
-        ],
       ),
       child: Stack(
         children: [
           Positioned(
-            top: 8,
-            left: 50,
-            right: 50,
+            top: 15,
+            left: 15,
+            right: 15,
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: top.map((person) => Text(person.name, style: nameStyle)).toList(),
+              mainAxisAlignment: MainAxisAlignment.start,
+              children: top.map((person) => 
+                Expanded(
+                  child: Text(
+                    person.name,
+                    style: nameStyle,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ).toList(),
             ),
           ),
           Positioned(
-            top: 70,
-            right: 10,
+            top: 90,
+            right: 15,
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: right.map((person) => Text(person.name, style: nameStyle)).toList(),
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: right.map((person) => 
+                Padding(
+                  padding: EdgeInsets.symmetric(vertical: 8),
+                  child: Text(
+                    person.name,
+                    style: nameStyle,
+                    textAlign: TextAlign.right,
+                  ),
+                )
+              ).toList(),
             ),
           ),
           Positioned(
-            bottom: 8,
-            left: 50,
-            right: 50,
+            bottom: 15,
+            left: 15,
+            right: 15,
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: bottom.map((person) => Text(person.name, style: nameStyle)).toList(),
+              mainAxisAlignment: MainAxisAlignment.start,
+              children: bottom.map((person) => 
+                Expanded(
+                  child: Text(
+                    person.name,
+                    style: nameStyle,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ).toList(),
             ),
           ),
           Positioned(
-            top: 70,
-            left: 10,
+            top: 90,
+            left: 15,
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: left.map((person) => Text(person.name, style: nameStyle)).toList(),
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: left.map((person) => 
+                Padding(
+                  padding: EdgeInsets.symmetric(vertical: 8),
+                  child: Text(
+                    person.name,
+                    style: nameStyle,
+                    textAlign: TextAlign.left,
+                  ),
+                )
+              ).toList(),
             ),
           ),
         ],
@@ -263,14 +292,18 @@ class _TableScreenState extends ConsumerState<TableScreen> {
   Widget buildRoundTable(List<Person> table) {
     if (table.isEmpty) {
       return Container(
-        child: Center(child: Text('Pas de table ronde nécessaire')),
+        child: Center(
+          child: Text(
+            'Pas de table ronde nécessaire',
+            style: CupertinoTheme.of(context).textTheme.textStyle,
+          ),
+        ),
       );
     }
 
-    final TextStyle nameStyle = TextStyle(
+    final TextStyle nameStyle = CupertinoTheme.of(context).textTheme.textStyle.copyWith(
       fontSize: 14,
       fontWeight: FontWeight.w600,
-      color: Colors.grey.shade800,
     );
 
     return Container(
@@ -283,17 +316,9 @@ class _TableScreenState extends ConsumerState<TableScreen> {
               width: 250,
               height: 250,
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: CupertinoColors.systemBackground,
                 shape: BoxShape.circle,
-                border: Border.all(color: Colors.grey.shade300, width: 2),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.grey.withOpacity(0.2),
-                    spreadRadius: 2,
-                    blurRadius: 4,
-                    offset: Offset(0, 2),
-                  ),
-                ],
+                border: Border.all(color: CupertinoColors.systemGrey5),
               ),
             ),
           ),
@@ -318,27 +343,31 @@ class _TableScreenState extends ConsumerState<TableScreen> {
   }
 
   Widget _buildFamilySection(String familyName, List<Person> familyMembers) {
-    return ExpansionTile(
-      title: Text(familyName),
+    return CupertinoListSection.insetGrouped(
+      header: Text(familyName),
       children: familyMembers.map((person) {
         final isInvited = invitedPeople.any((p) => p.name == person.name);
-        return ListTile(
+        return CupertinoListTile(
           title: Text(person.name),
           subtitle: Text(person.gender == 'Male' ? 'Homme' : 'Femme'),
           trailing: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Checkbox(
+              CupertinoSwitch(
                 value: presence[person.name] ?? true,
-                onChanged: (bool? value) {
+                onChanged: (bool value) {
                   setState(() {
-                    presence[person.name] = value ?? true;
+                    presence[person.name] = value;
                   });
                 },
               ),
               if (isInvited)
-                IconButton(
-                  icon: Icon(Icons.delete, color: Colors.red),
+                CupertinoButton(
+                  padding: EdgeInsets.zero,
+                  child: Icon(
+                    CupertinoIcons.delete,
+                    color: CupertinoColors.destructiveRed,
+                  ),
                   onPressed: () async {
                     setState(() {
                       peopleList.removeWhere((p) => p.name == person.name);
@@ -356,7 +385,6 @@ class _TableScreenState extends ConsumerState<TableScreen> {
   }
 
   Widget _buildInvitedList() {
-    // Grouper les personnes par famille
     Map<String, List<Person>> families = {};
     List<Person> invited = [];
 
@@ -371,37 +399,34 @@ class _TableScreenState extends ConsumerState<TableScreen> {
       }
     }
 
-    return Card(
-      child: Column(
-        children: [
-          Padding(
-            padding: EdgeInsets.all(16.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'La Famille',
-                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                ),
-                IconButton(
-                  icon: Icon(Icons.person_add),
-                  onPressed: () {
-                    showDialog(
-                      context: context,
-                      builder: (context) => AddInviteDialog(
-                        onAdd: addInvite,
-                      ),
-                    );
-                  },
-                ),
-              ],
-            ),
+    return Column(
+      children: [
+        Padding(
+          padding: EdgeInsets.all(16.0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'La Famille',
+                style: CupertinoTheme.of(context).textTheme.navLargeTitleTextStyle,
+              ),
+              CupertinoButton(
+                padding: EdgeInsets.zero,
+                child: Icon(CupertinoIcons.person_add),
+                onPressed: () {
+                  showCupertinoDialog(
+                    context: context,
+                    builder: (context) => AddInviteDialog(onAdd: addInvite),
+                  );
+                },
+              ),
+            ],
           ),
-          ...families.entries.map((entry) => _buildFamilySection(entry.key, entry.value)).toList(),
-          if (invited.isNotEmpty)
-            _buildFamilySection('Invités', invited),
-        ],
-      ),
+        ),
+        ...families.entries.map((entry) => _buildFamilySection(entry.key, entry.value)).toList(),
+        if (invited.isNotEmpty)
+          _buildFamilySection('Invités', invited),
+      ],
     );
   }
 
@@ -409,51 +434,51 @@ class _TableScreenState extends ConsumerState<TableScreen> {
   Widget build(BuildContext context) {
     final tableResult = ref.watch(tablePlanProvider);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Plan de Table'),
+    return CupertinoPageScaffold(
+      navigationBar: CupertinoNavigationBar(
+        middle: Text('Plan de Table'),
       ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                statusMessage,
-                style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
-                textAlign: TextAlign.center,
-              ),
-              SizedBox(height: 20),
-              Text(
-                'Table Rectangulaire',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                textAlign: TextAlign.center,
-              ),
-              SizedBox(height: 10),
-              Center(child: buildRectangleTable(tableResult.table1)),
-              if (tableResult.table2.isNotEmpty) ...[
-                SizedBox(height: 40),
+      child: SafeArea(
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
                 Text(
-                  'Table Ronde (invités supplémentaires)',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  statusMessage,
+                  style: CupertinoTheme.of(context).textTheme.textStyle.copyWith(
+                    color: CupertinoColors.systemGrey,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                SizedBox(height: 20),
+                Text(
+                  'Table Rectangulaire',
+                  style: CupertinoTheme.of(context).textTheme.navTitleTextStyle,
                   textAlign: TextAlign.center,
                 ),
                 SizedBox(height: 10),
-                Center(child: buildRoundTable(tableResult.table2)),
-              ],
-              SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: generateTablePlan,
-                child: Text('Générer le Plan'),
-                style: ElevatedButton.styleFrom(
-                  padding: EdgeInsets.symmetric(vertical: 15),
-                  textStyle: TextStyle(fontSize: 18),
+                Center(child: buildRectangleTable(tableResult.table1)),
+                if (tableResult.table2.isNotEmpty) ...[
+                  SizedBox(height: 40),
+                  Text(
+                    'Table Ronde (invités supplémentaires)',
+                    style: CupertinoTheme.of(context).textTheme.navTitleTextStyle,
+                    textAlign: TextAlign.center,
+                  ),
+                  SizedBox(height: 10),
+                  Center(child: buildRoundTable(tableResult.table2)),
+                ],
+                SizedBox(height: 20),
+                CupertinoButton.filled(
+                  onPressed: generateTablePlan,
+                  child: Text('Générer le Plan'),
                 ),
-              ),
-              SizedBox(height: 20),
-              _buildInvitedList(),
-            ],
+                SizedBox(height: 20),
+                _buildInvitedList(),
+              ],
+            ),
           ),
         ),
       ),
@@ -477,41 +502,43 @@ class _AddInviteDialogState extends State<AddInviteDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
+    return CupertinoAlertDialog(
       title: Text('Ajouter un invité'),
       content: Column(
-        mainAxisSize: MainAxisSize.min,
         children: [
-          TextField(
+          CupertinoTextField(
             controller: _nameController,
-            decoration: InputDecoration(labelText: 'Nom'),
+            placeholder: 'Nom',
+            padding: EdgeInsets.all(8),
           ),
-          TextField(
+          SizedBox(height: 8),
+          CupertinoTextField(
             controller: _familyController,
-            decoration: InputDecoration(labelText: 'Famille'),
+            placeholder: 'Famille',
+            padding: EdgeInsets.all(8),
           ),
-          DropdownButton<String>(
-            value: _selectedGender,
-            items: ['Male', 'Female'].map((String value) {
-              return DropdownMenuItem<String>(
-                value: value,
-                child: Text(value == 'Male' ? 'Homme' : 'Femme'),
-              );
-            }).toList(),
-            onChanged: (String? newValue) {
+          SizedBox(height: 8),
+          CupertinoSegmentedControl<String>(
+            children: {
+              'Male': Text('Homme'),
+              'Female': Text('Femme'),
+            },
+            onValueChanged: (String value) {
               setState(() {
-                _selectedGender = newValue!;
+                _selectedGender = value;
               });
             },
+            groupValue: _selectedGender,
           ),
         ],
       ),
       actions: [
-        TextButton(
+        CupertinoDialogAction(
           onPressed: () => Navigator.pop(context),
+          isDestructiveAction: true,
           child: Text('Annuler'),
         ),
-        TextButton(
+        CupertinoDialogAction(
           onPressed: () {
             if (_nameController.text.isNotEmpty && _familyController.text.isNotEmpty) {
               widget.onAdd(_nameController.text, _familyController.text, _selectedGender);

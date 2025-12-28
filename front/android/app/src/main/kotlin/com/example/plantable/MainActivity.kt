@@ -1,4 +1,4 @@
-package com.example.table_planner_app
+package com.mamounette.plantable
 
 import io.flutter.embedding.android.FlutterActivity
 
