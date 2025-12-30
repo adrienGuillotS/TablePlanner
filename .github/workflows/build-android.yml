@@ -33,11 +33,9 @@ jobs:
       working-directory: ./front
       run: flutter pub get
       
-    - name: Remove gradle.properties if exists
+    - name: Remove local.properties if exists
       working-directory: ./front/android
-      run: |
-        rm -f gradle.properties
-        rm -f local.properties
+      run: rm -f local.properties
       continue-on-error: true
       
     - name: Clean build
