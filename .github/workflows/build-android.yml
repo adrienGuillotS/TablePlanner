@@ -18,18 +18,24 @@ jobs:
     - name: Setup Java
       uses: actions/setup-java@v4
       with:
-        distribution: 'zulu'
+        distribution: 'temurin'
         java-version: '17'
+        cache: 'gradle'
         
     - name: Setup Flutter
       uses: subosito/flutter-action@v2
       with:
         flutter-version: '3.24.0'
         channel: 'stable'
+        cache: true
         
     - name: Get dependencies
       working-directory: ./front
       run: flutter pub get
+      
+    - name: Clean build
+      working-directory: ./front
+      run: flutter clean
       
     - name: Build APK
       working-directory: ./front
