@@ -59,6 +59,10 @@ class _TableScreenState extends ConsumerState<TableScreen> {
   List<Person> invitedPeople = [];
   Map<String, bool> presence = {};
   String statusMessage = "Appuie sur le bouton pour générer un plan Mamoune.";
+  bool isEditMode = false;
+  List<Person> editableTable1 = [];
+  List<Person> editableTable2 = [];
+  Map<String, dynamic>? selectedPerson;
 
   @override
   void initState() {
@@ -132,31 +136,80 @@ class _TableScreenState extends ConsumerState<TableScreen> {
     await _saveData();
   }
 
-  void generateTablePlan() {
+  void movePerson(Person person, String fromTable, int fromIndex, String toTable, int toIndex) {
     setState(() {
-      statusMessage = "Génération du plan...";
+      if (fromTable == 'table1') {
+        editableTable1.removeAt(fromIndex);
+      } else {
+        editableTable2.removeAt(fromIndex);
+      }
+
+      if (toTable == 'table1') {
+        editableTable1.insert(toIndex, person);
+      } else {
+        editableTable2.insert(toIndex, person);
+      }
     });
+  }
 
-    try {
-      final presentPeople = peopleList
-          .where((person) => presence[person.name] == true)
-          .toList();
+  void swapPersons(String table1Name, int index1, String table2Name, int index2) {
+    setState(() {
+      if (table1Name == 'table1' && table2Name == 'table1') {
+        final temp = editableTable1[index1];
+        editableTable1[index1] = editableTable1[index2];
+        editableTable1[index2] = temp;
+      } else if (table1Name == 'table2' && table2Name == 'table2') {
+        final temp = editableTable2[index1];
+        editableTable2[index1] = editableTable2[index2];
+        editableTable2[index2] = temp;
+      } else if (table1Name == 'table1' && table2Name == 'table2') {
+        final temp = editableTable1[index1];
+        editableTable1[index1] = editableTable2[index2];
+        editableTable2[index2] = temp;
+      } else if (table1Name == 'table2' && table2Name == 'table1') {
+        final temp = editableTable2[index1];
+        editableTable2[index1] = editableTable1[index2];
+        editableTable1[index2] = temp;
+      }
+    });
+  }
 
-      final result = _tablePlannerService.generateTablePlan(
-        presentPeople,
-        TableSizes(20, 7),
-      );
+  void generateTablePlan() {
+    final presentPeople = peopleList
+        .where((person) => presence[person.name] == true)
+        .toList();
+    
+    showCupertinoDialog(
+      context: context,
+      builder: (context) => TableSizeDialog(
+        totalPeople: presentPeople.length,
+        onGenerate: (int table1Size, int table2Size) {
+          setState(() {
+            statusMessage = "Génération du plan...";
+          });
 
-      ref.read(tablePlanProvider.notifier).state = result;
-      
-      setState(() {
-        statusMessage = "Plan de table généré avec succès mamounette!";
-      });
-    } catch (e) {
-      setState(() {
-        statusMessage = "Erreur lors de la génération du plan. Mince appelle Adrien ou Oscar!";
-      });
-    }
+          try {
+            final result = _tablePlannerService.generateTablePlan(
+              presentPeople,
+              TableSizes(table1Size, table2Size),
+            );
+
+            ref.read(tablePlanProvider.notifier).state = result;
+            
+            setState(() {
+              editableTable1 = List.from(result.table1);
+              editableTable2 = List.from(result.table2);
+              isEditMode = false;
+              statusMessage = "Plan de table généré avec succès mamounette!";
+            });
+          } catch (e) {
+            setState(() {
+              statusMessage = "Erreur lors de la génération du plan. Mince appelle Adrien ou Oscar!";
+            });
+          }
+        },
+      ),
+    );
   }
 
   Widget buildRectangleTable(List<Person> table) {
@@ -286,6 +339,94 @@ class _TableScreenState extends ConsumerState<TableScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget buildEditableTableList(List<Person> table, String tableName) {
+    return Column(
+      children: List.generate(table.length, (index) {
+        final person = table[index];
+        final isSelected = selectedPerson != null &&
+            selectedPerson!['person'].name == person.name &&
+            selectedPerson!['table'] == tableName &&
+            selectedPerson!['index'] == index;
+
+        return GestureDetector(
+          onTap: () {
+            setState(() {
+              if (isSelected) {
+                // Désélectionner
+                selectedPerson = null;
+              } else if (selectedPerson == null) {
+                // Sélectionner cette personne
+                selectedPerson = {
+                  'person': person,
+                  'table': tableName,
+                  'index': index,
+                };
+              } else {
+                // Échanger avec la personne sélectionnée
+                final fromTable = selectedPerson!['table'] as String;
+                final fromIndex = selectedPerson!['index'] as int;
+                swapPersons(fromTable, fromIndex, tableName, index);
+                selectedPerson = null;
+              }
+            });
+          },
+          child: Container(
+            margin: EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+            padding: EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: isSelected
+                  ? CupertinoColors.systemBlue.withOpacity(0.2)
+                  : selectedPerson != null
+                      ? CupertinoColors.systemGreen.withOpacity(0.1)
+                      : CupertinoColors.systemBackground,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: isSelected
+                    ? CupertinoColors.systemBlue
+                    : selectedPerson != null
+                        ? CupertinoColors.systemGreen
+                        : CupertinoColors.systemGrey4,
+                width: isSelected ? 2 : 1,
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  CupertinoIcons.person_fill,
+                  size: 16,
+                  color: person.gender == 'Male'
+                      ? CupertinoColors.systemBlue
+                      : CupertinoColors.systemPink,
+                ),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    person.name,
+                    style: CupertinoTheme.of(context).textTheme.textStyle.copyWith(
+                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                    ),
+                  ),
+                ),
+                if (isSelected)
+                  Icon(
+                    CupertinoIcons.checkmark_circle_fill,
+                    size: 20,
+                    color: CupertinoColors.systemBlue,
+                  )
+                else if (selectedPerson != null)
+                  Icon(
+                    CupertinoIcons.arrow_right_arrow_left_circle,
+                    size: 20,
+                    color: CupertinoColors.systemGreen,
+                  ),
+              ],
+            ),
+          ),
+        );
+      }),
     );
   }
 
@@ -433,6 +574,7 @@ class _TableScreenState extends ConsumerState<TableScreen> {
   @override
   Widget build(BuildContext context) {
     final tableResult = ref.watch(tablePlanProvider);
+    final hasGeneratedPlan = editableTable1.isNotEmpty || editableTable2.isNotEmpty;
 
     return CupertinoPageScaffold(
       navigationBar: CupertinoNavigationBar(
@@ -453,22 +595,107 @@ class _TableScreenState extends ConsumerState<TableScreen> {
                   textAlign: TextAlign.center,
                 ),
                 SizedBox(height: 20),
-                Text(
-                  'Table Rectangulaire',
-                  style: CupertinoTheme.of(context).textTheme.navTitleTextStyle,
-                  textAlign: TextAlign.center,
-                ),
-                SizedBox(height: 10),
-                Center(child: buildRectangleTable(tableResult.table1)),
-                if (tableResult.table2.isNotEmpty) ...[
-                  SizedBox(height: 40),
+                if (hasGeneratedPlan) ...[
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      CupertinoButton(
+                        padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                        color: isEditMode ? CupertinoColors.systemGreen : CupertinoColors.systemBlue,
+                        onPressed: () {
+                          setState(() {
+                            isEditMode = !isEditMode;
+                          });
+                        },
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              isEditMode ? CupertinoIcons.check_mark : CupertinoIcons.pencil,
+                              size: 20,
+                              color: CupertinoColors.white,
+                            ),
+                            SizedBox(width: 10),
+                            Text(
+                              isEditMode ? 'Terminer' : 'Modifier le plan',
+                              style: TextStyle(
+                                color: CupertinoColors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 20),
+                ],
+                if (isEditMode) ...[
+                  Container(
+                    padding: EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: CupertinoColors.systemBlue.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Column(
+                      children: [
+                        Text(
+                          'Mode Édition',
+                          style: CupertinoTheme.of(context).textTheme.textStyle.copyWith(
+                            color: CupertinoColors.systemBlue,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        SizedBox(height: 8),
+                        Text(
+                          '1. Clique sur une personne pour la sélectionner\n2. Clique sur une autre pour les échanger\n3. Fonctionne entre les tables aussi!',
+                          style: CupertinoTheme.of(context).textTheme.textStyle.copyWith(
+                            fontSize: 13,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  ),
+                  SizedBox(height: 20),
                   Text(
-                    'Table Ronde (invités supplémentaires)',
+                    'Table 1 (Rectangulaire)',
                     style: CupertinoTheme.of(context).textTheme.navTitleTextStyle,
                     textAlign: TextAlign.center,
                   ),
                   SizedBox(height: 10),
-                  Center(child: buildRoundTable(tableResult.table2)),
+                  buildEditableTableList(editableTable1, 'table1'),
+                  if (editableTable2.isNotEmpty) ...[
+                    SizedBox(height: 40),
+                    Text(
+                      'Table 2 (Ronde)',
+                      style: CupertinoTheme.of(context).textTheme.navTitleTextStyle,
+                      textAlign: TextAlign.center,
+                    ),
+                    SizedBox(height: 10),
+                    buildEditableTableList(editableTable2, 'table2'),
+                  ],
+                ] else ...[
+                  Text(
+                    'Table Rectangulaire',
+                    style: CupertinoTheme.of(context).textTheme.navTitleTextStyle,
+                    textAlign: TextAlign.center,
+                  ),
+                  SizedBox(height: 10),
+                  Center(child: buildRectangleTable(hasGeneratedPlan ? editableTable1 : tableResult.table1)),
+                  if ((hasGeneratedPlan ? editableTable2 : tableResult.table2).isNotEmpty) ...[
+                    SizedBox(height: 40),
+                    Text(
+                      'Table Ronde (invités supplémentaires)',
+                      style: CupertinoTheme.of(context).textTheme.navTitleTextStyle,
+                      textAlign: TextAlign.center,
+                    ),
+                    SizedBox(height: 10),
+                    Center(child: buildRoundTable(hasGeneratedPlan ? editableTable2 : tableResult.table2)),
+                  ],
                 ],
                 SizedBox(height: 20),
                 CupertinoButton.filled(
@@ -555,6 +782,149 @@ class _AddInviteDialogState extends State<AddInviteDialog> {
   void dispose() {
     _nameController.dispose();
     _familyController.dispose();
+    super.dispose();
+  }
+}
+
+class TableSizeDialog extends StatefulWidget {
+  final int totalPeople;
+  final Function(int table1Size, int table2Size) onGenerate;
+
+  TableSizeDialog({required this.totalPeople, required this.onGenerate});
+
+  @override
+  _TableSizeDialogState createState() => _TableSizeDialogState();
+}
+
+class _TableSizeDialogState extends State<TableSizeDialog> {
+  final _table1Controller = TextEditingController(text: '20');
+  final _table2Controller = TextEditingController(text: '7');
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _table1Controller.text = widget.totalPeople.toString();
+    _table2Controller.text = '0';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return CupertinoAlertDialog(
+      title: Text('Configuration des tables'),
+      content: Column(
+        children: [
+          SizedBox(height: 12),
+          Text(
+            'Nombre de personnes présentes: ${widget.totalPeople}',
+            style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+          ),
+          SizedBox(height: 8),
+          Text(
+            'Combien de personnes par table ?',
+            style: TextStyle(fontSize: 14),
+          ),
+          SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Table 1 (rectangulaire):',
+                  style: TextStyle(fontSize: 13),
+                ),
+              ),
+              SizedBox(width: 8),
+              Container(
+                width: 60,
+                child: CupertinoTextField(
+                  controller: _table1Controller,
+                  keyboardType: TextInputType.number,
+                  textAlign: TextAlign.center,
+                  padding: EdgeInsets.all(8),
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Table 2 (ronde):',
+                  style: TextStyle(fontSize: 13),
+                ),
+              ),
+              SizedBox(width: 8),
+              Container(
+                width: 60,
+                child: CupertinoTextField(
+                  controller: _table2Controller,
+                  keyboardType: TextInputType.number,
+                  textAlign: TextAlign.center,
+                  padding: EdgeInsets.all(8),
+                ),
+              ),
+            ],
+          ),
+          if (_errorMessage != null) ...[
+            SizedBox(height: 12),
+            Text(
+              _errorMessage!,
+              style: TextStyle(
+                fontSize: 12,
+                color: CupertinoColors.destructiveRed,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ],
+      ),
+      actions: [
+        CupertinoDialogAction(
+          onPressed: () => Navigator.pop(context),
+          isDestructiveAction: true,
+          child: Text('Annuler'),
+        ),
+        CupertinoDialogAction(
+          onPressed: () {
+            final table1Size = int.tryParse(_table1Controller.text) ?? 0;
+            final table2Size = int.tryParse(_table2Controller.text) ?? 0;
+            final totalSize = table1Size + table2Size;
+            
+            if (table1Size <= 0) {
+              setState(() {
+                _errorMessage = 'La table 1 doit avoir au moins 1 place';
+              });
+              return;
+            }
+            
+            if (table2Size < 0) {
+              setState(() {
+                _errorMessage = 'La table 2 ne peut pas avoir un nombre négatif';
+              });
+              return;
+            }
+            
+            if (totalSize != widget.totalPeople) {
+              setState(() {
+                _errorMessage = 'Erreur: Total des places ($totalSize) ≠ Personnes présentes (${widget.totalPeople})';
+              });
+              return;
+            }
+            
+            widget.onGenerate(table1Size, table2Size);
+            Navigator.pop(context);
+          },
+          child: Text('Générer'),
+        ),
+      ],
+    );
+  }
+
+  @override
+  void dispose() {
+    _table1Controller.dispose();
+    _table2Controller.dispose();
     super.dispose();
   }
 }
