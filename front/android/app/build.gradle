@@ -10,14 +10,11 @@ android {
 
     defaultConfig {
         applicationId "com.mamounette.plantable"
-        minSdk = 30
+        minSdk = 21
         targetSdk = 34
         versionCode = 1
         versionName = "1.0.0"
         multiDexEnabled true
-        ndk {
-            abiFilters "armeabi-v7a", "arm64-v8a"
-        }
     }
 
     buildTypes {
@@ -27,9 +24,6 @@ android {
             shrinkResources false
             debuggable false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-            ndk {
-                abiFilters 'armeabi-v7a', 'arm64-v8a'
-            }
         }
         debug {
             signingConfig signingConfigs.debug
